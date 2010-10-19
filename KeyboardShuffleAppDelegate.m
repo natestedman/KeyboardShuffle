@@ -8,45 +8,48 @@
 
 #import "KeyboardShuffleAppDelegate.h"
 
+#import <Carbon/Carbon.h>
+
 @implementation KeyboardShuffleAppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-	appleScript = [NSString stringWithContentsOfFile:[[NSBundle mainBundle]
-                                                      pathForResource:
-                                                      @"SetKeyboard"
-                                                      ofType:@"as"]
-                                            encoding:NSUTF8StringEncoding
-                                               error:nil];
-    NSArray* layouts = [NSArray arrayWithObjects:
-                        @"Dvorak", @"U.S.", @"Colemak", nil];
-    
     srand(time(NULL));
     
-    NSString* layout = nil;
+    TISInputSourceRef layout = nil;
+    NSDictionary* layoutFilter = [NSDictionary dictionaryWithObject:@"com.apple.keyboardlayout.all"
+                                                             forKey:(id)kTISPropertyBundleID];
+    NSArray* layouts = (NSArray *)TISCreateInputSourceList((CFDictionaryRef)layoutFilter, false);
+    TISInputSourceRef oldLayout = TISCopyCurrentKeyboardLayoutInputSource();
     
+    if([layouts count] <= 1)
+    {
+        NSLog(@"Cannot run; only one keyboard layout enabled!!");
+    }
+
     while (1) {
-        NSString* oldLayout = layout;
+        NSString* layoutName;
+        NSString* warning;
+        
+        oldLayout = layout;
+        
         do {
-            layout = [layouts objectAtIndex:rand() % [layouts count]];
+            layout = (TISInputSourceRef)[layouts objectAtIndex:rand() % [layouts count]];
         } while (layout == oldLayout);
         
-        NSString* replacedAppleScript = [appleScript
-                                         stringByReplacingOccurrencesOfString:
-                                         @"@LAYOUT@"
-                                         withString:layout];
-        
-        NSAppleScript* script = [[NSAppleScript alloc]
-                                 initWithSource:replacedAppleScript];
+        layoutName = TISGetInputSourceProperty(layout, kTISPropertyLocalizedName);
+        warning = [NSString stringWithFormat:@"say %@ incoming!", layoutName];
         
         sleep(5 * 60 + rand() % (60 * 60));
         
-        NSString* warning = [NSString
-                             stringWithFormat:@"say %@ incoming!", layout];
         system([warning cStringUsingEncoding:NSUTF8StringEncoding]);
+        
         sleep(5);
         
-        [script executeAndReturnError:nil];
+        TISSelectInputSource(layout);
+        
         [[NSSound soundNamed:@"Glass"] play];
+        
+        [warning release];
     }
 }
 
