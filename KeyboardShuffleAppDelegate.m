@@ -24,6 +24,7 @@
     if([layouts count] <= 1)
     {
         NSLog(@"Cannot run; only one keyboard layout enabled!!");
+        [NSApp terminate:self];
     }
 
     while (1) {
